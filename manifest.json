@@ -1,0 +1,11 @@
+{
+  "display_name": "TheOnryo",
+  "loading_order": 5,
+  "js": "index.js",
+  "css": "style.css",
+  "author": "robot",
+  "version": "1.0.0",
+  "requires": [],
+  "optional": [],
+  "description": "Auto silent audio keep-alive. Prevents iOS from killing background tabs."
+}
