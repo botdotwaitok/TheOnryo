@@ -5,6 +5,7 @@
   "css": "style.css",
   "author": "robot",
   "version": "1.0.0",
+  "homePage": "https://github.com/botdotwaitok/TheOnryo",
   "requires": [],
   "optional": [],
   "description": "Auto silent audio keep-alive. Prevents iOS from killing background tabs."

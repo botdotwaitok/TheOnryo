@@ -101,6 +101,50 @@ function _writeString(view, offset, str) {
 
 let _audio = null;
 let _active = false;
+let _stoppedByUser = false;
+
+// ═══════════════════════════════════════════════════════════════════════
+// Internal Helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Play an audio element with autoplay-blocked fallback.
+ */
+function _playAudio(audio) {
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise
+            .then(() => {
+                console.log(`${LOG_PREFIX} Silent audio playing — keep-alive active.`);
+            })
+            .catch(() => {
+                console.warn(`${LOG_PREFIX} Autoplay blocked — waiting for user interaction.`);
+                const resume = () => {
+                    if (_audio) {
+                        _audio.play()
+                            .then(() => console.log(`${LOG_PREFIX} Resumed after user interaction.`))
+                            .catch(e => console.warn(`${LOG_PREFIX} Resume failed:`, e));
+                    }
+                    document.removeEventListener('touchstart', resume);
+                    document.removeEventListener('click', resume);
+                };
+                document.addEventListener('touchstart', resume, { once: true });
+                document.addEventListener('click', resume, { once: true });
+            });
+    }
+}
+
+/**
+ * Handles external pause events (e.g. iOS control center, phone call interruption).
+ * Marks keep-alive as inactive so the next message send can reactivate it.
+ */
+function _onExternalPause() {
+    // Ignore pause events caused by our own stopKeepAlive()
+    if (_stoppedByUser) return;
+
+    console.warn(`${LOG_PREFIX} Audio paused externally — marking inactive for re-activation.`);
+    _active = false;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // Public API
@@ -111,8 +155,16 @@ let _active = false;
  * Safe to call multiple times — will no-op if already running.
  */
 export function startKeepAlive() {
+    // If audio exists but was paused externally (e.g. iOS control center),
+    // resume it instead of skipping.
     if (_audio) {
-        console.log(`${LOG_PREFIX} Already active, skipping.`);
+        if (_audio.paused) {
+            console.log(`${LOG_PREFIX} Audio was paused — resuming.`);
+            _playAudio(_audio);
+            _active = true;
+        } else {
+            console.log(`${LOG_PREFIX} Already active, skipping.`);
+        }
         return;
     }
 
@@ -122,29 +174,10 @@ export function startKeepAlive() {
         _audio.loop = true;
         _audio.volume = 0.01; // Non-zero to avoid browser optimization
 
-        const playPromise = _audio.play();
-        if (playPromise && typeof playPromise.catch === 'function') {
-            playPromise
-                .then(() => {
-                    console.log(`${LOG_PREFIX} Silent audio playing — keep-alive active.`);
-                })
-                .catch(() => {
-                    // iOS requires user interaction before playing audio.
-                    console.warn(`${LOG_PREFIX} Autoplay blocked — waiting for user interaction.`);
-                    const resume = () => {
-                        if (_audio) {
-                            _audio.play()
-                                .then(() => console.log(`${LOG_PREFIX} Resumed after user interaction.`))
-                                .catch(e => console.warn(`${LOG_PREFIX} Resume failed:`, e));
-                        }
-                        document.removeEventListener('touchstart', resume);
-                        document.removeEventListener('click', resume);
-                    };
-                    document.addEventListener('touchstart', resume, { once: true });
-                    document.addEventListener('click', resume, { once: true });
-                });
-        }
+        // Detect external pauses (iOS control center, interruptions, etc.)
+        _audio.addEventListener('pause', _onExternalPause);
 
+        _playAudio(_audio);
         _active = true;
     } catch (e) {
         console.error(`${LOG_PREFIX} Failed to create audio:`, e);
@@ -155,12 +188,15 @@ export function startKeepAlive() {
  * Stop the silent audio loop and release resources.
  */
 export function stopKeepAlive() {
+    _stoppedByUser = true;
     if (_audio) {
+        _audio.removeEventListener('pause', _onExternalPause);
         _audio.pause();
         _audio.src = '';
         _audio = null;
     }
     _active = false;
+    _stoppedByUser = false;
     console.log(`${LOG_PREFIX} Keep-alive stopped.`);
 }
 
@@ -172,12 +208,22 @@ export function isKeepAliveActive() {
 }
 
 /**
- * Start keep-alive only if enabled in settings AND not already active.
- * Called automatically on MESSAGE_SENT.
+ * Start keep-alive if enabled. Resumes paused audio or starts fresh.
+ * Called automatically on MESSAGE_SENT / MESSAGE_SWIPED.
  */
 export function tryAutoStartKeepAlive() {
-    if (isEnabled() && !_active) {
+    if (!isEnabled()) return;
+
+    // Not active at all → start fresh
+    if (!_active) {
         console.log(`${LOG_PREFIX} Auto-starting on message send.`);
+        startKeepAlive();
+        return;
+    }
+
+    // Active but audio was paused externally → resume
+    if (_audio && _audio.paused) {
+        console.log(`${LOG_PREFIX} Audio paused — resuming on message send.`);
         startKeepAlive();
     }
 }
