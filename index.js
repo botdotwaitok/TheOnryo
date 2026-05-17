@@ -7,6 +7,7 @@ import {
     loadSettings,
     isEnabled,
     setEnabled,
+    startKeepAlive,
     stopKeepAlive,
     isKeepAliveActive,
     tryAutoStartKeepAlive,
@@ -20,17 +21,17 @@ const LOG_PREFIX = '[TheOnryo]';
 // UI Helpers
 // ═══════════════════════════════════════════════════════════════════════
 
-function updateStatusUI() {
+function updateToggleUI() {
     const active = isKeepAliveActive();
-    const $status = $('#theonryo_status');
-    const $stopRow = $('#theonryo_stop_row');
+    const $icon = $('#theonryo_toggle_icon');
+    const $label = $('#theonryo_toggle_label');
 
     if (active) {
-        $status.text('Active').removeClass('theonryo-inactive').addClass('theonryo-active');
-        $stopRow.show();
+        $icon.removeClass('ph-play-circle').addClass('ph-pause-circle');
+        $label.text('Pause');
     } else {
-        $status.text('Inactive').removeClass('theonryo-active').addClass('theonryo-inactive');
-        $stopRow.hide();
+        $icon.removeClass('ph-pause-circle').addClass('ph-play-circle');
+        $label.text('Play');
     }
 }
 
@@ -41,7 +42,7 @@ function updateStatusUI() {
 function onMessageSent() {
     tryAutoStartKeepAlive();
     // Defer UI update slightly to let audio.play() resolve
-    setTimeout(updateStatusUI, 100);
+    setTimeout(updateToggleUI, 100);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -63,14 +64,18 @@ jQuery(async () => {
     $('#theonryo_enabled').on('change', function () {
         const checked = $(this).prop('checked');
         setEnabled(checked);
-        updateStatusUI();
+        updateToggleUI();
         console.log(`${LOG_PREFIX} ${checked ? 'Enabled' : 'Disabled'}`);
     });
 
-    // Stop button handler
-    $('#theonryo_stop_btn').on('click', function () {
-        stopKeepAlive();
-        updateStatusUI();
+    // Play/Pause toggle handler
+    $('#theonryo_toggle_btn').on('click', function () {
+        if (isKeepAliveActive()) {
+            stopKeepAlive();
+        } else {
+            startKeepAlive();
+        }
+        setTimeout(updateToggleUI, 100);
     });
 
     // Listen for message sent & swipe events
@@ -78,7 +83,7 @@ jQuery(async () => {
     eventSource.on(event_types.MESSAGE_SWIPED, onMessageSent);
 
     // Initial UI state
-    updateStatusUI();
+    updateToggleUI();
 
     console.log(`${LOG_PREFIX} Initialized.`);
 });

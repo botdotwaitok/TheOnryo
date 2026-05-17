@@ -10,38 +10,6 @@
     margin: 4px 0 10px 0;
 }
 
-.theonryo-status-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 10px 0;
-}
-
-.theonryo-status-label {
-    font-size: 0.9em;
-    opacity: 0.7;
-}
-
-.theonryo-status-badge {
-    font-size: 0.85em;
-    padding: 2px 10px;
-    border-radius: 10px;
-    font-weight: 600;
-}
-
-.theonryo-status-badge.theonryo-active {
-    color: var(--SmartThemeBodyColor);
-    background: color-mix(in srgb, var(--SmartThemeQuoteColor) 25%, transparent);
-    border: 1px solid var(--SmartThemeQuoteColor);
-}
-
-.theonryo-status-badge.theonryo-inactive {
-    color: var(--SmartThemeBodyColor);
-    opacity: 0.5;
-    background: color-mix(in srgb, var(--SmartThemeBodyColor) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--SmartThemeBodyColor) 20%, transparent);
-}
-
-#theonryo_stop_btn i {
+#theonryo_toggle_btn i {
     margin-right: 4px;
 }
